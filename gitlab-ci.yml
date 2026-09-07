@@ -1,0 +1,52 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  VENV_DIR: "venv"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+before_script:
+  - python -m venv $VENV_DIR
+  - source $VENV_DIR/bin/activate
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+cache:
+  paths:
+    - $PIP_CACHE_DIR
+
+build:
+  stage: build
+  image: python:3.8
+  script:
+    - echo "Building the project..."
+    - python -m venv $VENV_DIR
+    - source $VENV_DIR/bin/activate
+    - pip install -r requirements.txt
+  tags:
+    - pages
+
+test:
+  stage: test
+  image: python:3.8
+  script:
+    - echo "Running tests..."
+    - source $VENV_DIR/bin/activate
+    - nohup uvicorn app:app --host 0.0.0.0 --port 8000 &
+    - sleep 10  # Give the server some time to start
+    - pytest
+    - kill $(jobs -p)  # Terminate the background uvicorn process
+  tags:
+    - pages
+
+deploy:
+  stage: deploy
+  image: python:3.8
+  script:
+    - echo "Deploying the project..."
+    - source $VENV_DIR/bin/activate
+    - nohup uvicorn app:app --host 0.0.0.0 --port 8000 &
+  tags:
+    - pages
